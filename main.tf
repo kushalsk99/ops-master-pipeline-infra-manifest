@@ -9,8 +9,8 @@ terraform {
   required_version = ">= 1.6.0"
 
   backend "gcs" {
-    bucket  = "ops-master-tf-state-bucket"
-    prefix  = "terraform/state"
+    bucket = "ops-master-tf-state-bucket"
+    prefix = "terraform/state"
   }
 
   required_providers {
