@@ -41,28 +41,31 @@ echo "K3s node is Ready."
 echo "[4/6] Generating JSON key for GAR reader Service Account: ${gar_reader_sa_email}..."
 KEY_FILE="/tmp/gar-sa-key.json"
 
-# Generate SA key via gcloud using the VM's attached identity
-gcloud iam service-accounts keys create "$${KEY_FILE}" \
-  --iam-account="${gar_reader_sa_email}"
-
-echo "Injecting gar-reader-secret into default, web-service-dev, and web-service-prod namespaces..."
-for NS in default web-service-dev web-service-prod; do
-  echo "Setting up GAR pull secret in namespace: $NS"
-  /usr/local/bin/kubectl create namespace "$NS" --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
-  /usr/local/bin/kubectl create secret docker-registry gar-reader-secret \
-    --namespace="$NS" \
-    --docker-server="${registry_host}" \
-    --docker-username=_json_key \
-    --docker-password="$(cat "$${KEY_FILE}")" \
-    --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
-  /usr/local/bin/kubectl patch serviceaccount default \
-    --namespace="$NS" \
-    -p '{"imagePullSecrets": [{"name": "gar-reader-secret"}]}' || true
-done
-
-# Securely wipe the generated key file from the filesystem
-shred -u "$${KEY_FILE}" 2>/dev/null || rm -f "$${KEY_FILE}"
-echo "gar-reader-secret injected successfully and local key file destroyed."
+# Attempt to generate SA key via gcloud using the VM's attached identity
+if gcloud iam service-accounts keys create "$${KEY_FILE}" --iam-account="${gar_reader_sa_email}" 2>/dev/null; then
+  echo "Injecting gar-reader-secret into default, web-service-dev, and web-service-prod namespaces..."
+  for NS in default web-service-dev web-service-prod; do
+    echo "Setting up GAR pull secret in namespace: $NS"
+    /usr/local/bin/kubectl create namespace "$NS" --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
+    /usr/local/bin/kubectl create secret docker-registry gar-reader-secret \
+      --namespace="$NS" \
+      --docker-server="${registry_host}" \
+      --docker-username=_json_key \
+      --docker-password="$(cat "$${KEY_FILE}")" \
+      --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
+    /usr/local/bin/kubectl patch serviceaccount default \
+      --namespace="$NS" \
+      -p '{"imagePullSecrets": [{"name": "gar-reader-secret"}]}' || true
+  done
+  shred -u "$${KEY_FILE}" 2>/dev/null || rm -f "$${KEY_FILE}"
+  echo "gar-reader-secret injected successfully and local key file destroyed."
+else
+  echo "[WARNING] Could not generate JSON key for ${gar_reader_sa_email} (missing Service Account Key Admin role)."
+  echo "[INFO] Creating target namespaces anyway..."
+  for NS in default web-service-dev web-service-prod; do
+    /usr/local/bin/kubectl create namespace "$NS" --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
+  done
+fi
 
 # ── 5. ArgoCD Bootstrapping ──────────────────────────────────────────────────
 echo "[5/6] Bootstrapping ArgoCD..."
