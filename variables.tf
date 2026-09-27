@@ -41,6 +41,14 @@ variable "create_artifact_repo" {
   default     = false
 }
 
+# ── IAM Configuration ────────────────────────────────────────────────────────
+
+variable "manage_iam" {
+  description = "Whether Terraform should manage project-level IAM bindings (set to false if the runner lacks Project IAM Admin)."
+  type        = bool
+  default     = false
+}
+
 # ── Compute / K3s Configuration ──────────────────────────────────────────────
 
 variable "machine_type" {

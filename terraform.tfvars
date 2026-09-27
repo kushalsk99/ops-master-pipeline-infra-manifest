@@ -12,6 +12,10 @@ environment = "production"
 artifact_repo_name   = "opsmaster-pipeline"
 create_artifact_repo = false
 
+# IAM Policy Bindings
+# Set to true only if the GitHub Actions Service Account has Project IAM Admin role
+manage_iam = false
+
 # Compute Node Configuration
 machine_type = "e2-standard-4"
 k3s_version  = "v1.30.2+k3s1"

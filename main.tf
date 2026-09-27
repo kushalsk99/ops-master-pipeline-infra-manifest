@@ -75,6 +75,7 @@ module "iam" {
 
   project_id = var.project_id
   sa_name    = "k3s-gar-reader-${var.environment}"
+  manage_iam = var.manage_iam
 }
 
 # ---------------------------------------------------------------------------

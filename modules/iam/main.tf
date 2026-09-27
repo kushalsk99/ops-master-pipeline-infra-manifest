@@ -15,6 +15,7 @@ resource "google_service_account" "k3s_sa" {
 
 # Grant roles/artifactregistry.reader on project level
 resource "google_project_iam_member" "k3s_sa_artifact_reader" {
+  count   = var.manage_iam ? 1 : 0
   project = var.project_id
   role    = "roles/artifactregistry.reader"
   member  = "serviceAccount:${google_service_account.k3s_sa.email}"
@@ -22,20 +23,22 @@ resource "google_project_iam_member" "k3s_sa_artifact_reader" {
 
 # Grant Cloud Logging and Monitoring for node observability
 resource "google_project_iam_member" "k3s_sa_log_writer" {
+  count   = var.manage_iam ? 1 : 0
   project = var.project_id
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.k3s_sa.email}"
 }
 
 resource "google_project_iam_member" "k3s_sa_metric_writer" {
+  count   = var.manage_iam ? 1 : 0
   project = var.project_id
   role    = "roles/monitoring.metricWriter"
   member  = "serviceAccount:${google_service_account.k3s_sa.email}"
 }
 
 # Allow the VM startup script (running as this SA) to generate its own JSON key
-# for injection into the Kubernetes dockerconfigjson secret (least privilege).
 resource "google_service_account_iam_member" "k3s_sa_key_admin" {
+  count              = var.manage_iam ? 1 : 0
   service_account_id = google_service_account.k3s_sa.name
   role               = "roles/iam.serviceAccountKeyAdmin"
   member             = "serviceAccount:${google_service_account.k3s_sa.email}"
@@ -51,6 +54,7 @@ resource "google_service_account" "cicd_sa" {
 }
 
 resource "google_project_iam_member" "cicd_sa_artifact_writer" {
+  count   = var.manage_iam ? 1 : 0
   project = var.project_id
   role    = "roles/artifactregistry.writer"
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
