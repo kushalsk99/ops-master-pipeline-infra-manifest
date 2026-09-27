@@ -22,3 +22,9 @@ variable "description" {
   type        = string
   default     = "Container image registry for ops-master pipeline."
 }
+
+variable "create_repository" {
+  description = "Whether to create a new Artifact Registry repository (true) or use an existing one (false)."
+  type        = bool
+  default     = false
+}

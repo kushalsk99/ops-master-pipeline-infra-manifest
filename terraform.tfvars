@@ -1,14 +1,16 @@
 ###############################################################################
 # terraform.tfvars — GCE K3s & GitOps Platform
-#
-# Customize with your GCP project parameters before running terraform apply.
 ###############################################################################
 
 # GCP Coordinates
-project_id  = "ops-master-project"
+project_id  = "projects-buildcwnelson-507509"
 region      = "us-central1"
 zone        = "us-central1-a"
 environment = "production"
+
+# Artifact Registry (Using your existing GCP Docker repository)
+artifact_repo_name   = "opsmaster-pipeline"
+create_artifact_repo = false
 
 # Compute Node Configuration
 machine_type = "e2-standard-4"

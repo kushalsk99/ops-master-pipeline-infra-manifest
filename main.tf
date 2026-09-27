@@ -60,10 +60,11 @@ module "vpc" {
 module "artifact_registry" {
   source = "./modules/artifact_registry"
 
-  project_id    = var.project_id
-  region        = var.region
-  repository_id = "app-services-repo-${var.environment}"
-  description   = "Docker container image registry for ops-master GitOps pipeline (${var.environment})."
+  project_id        = var.project_id
+  region            = var.region
+  repository_id     = var.artifact_repo_name
+  create_repository = var.create_artifact_repo
+  description       = "Docker container image registry for ops-master GitOps pipeline (${var.environment})."
 }
 
 # ---------------------------------------------------------------------------

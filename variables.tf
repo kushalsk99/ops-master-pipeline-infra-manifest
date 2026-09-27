@@ -27,6 +27,20 @@ variable "environment" {
   default     = "production"
 }
 
+# ── Artifact Registry Configuration ──────────────────────────────────────────
+
+variable "artifact_repo_name" {
+  description = "Name of the Artifact Registry Docker repository."
+  type        = string
+  default     = "opsmaster-pipeline"
+}
+
+variable "create_artifact_repo" {
+  description = "Set to true to provision a new Artifact Registry repo, or false to use your existing one."
+  type        = bool
+  default     = false
+}
+
 # ── Compute / K3s Configuration ──────────────────────────────────────────────
 
 variable "machine_type" {
