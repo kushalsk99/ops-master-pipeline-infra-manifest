@@ -74,8 +74,8 @@ echo "[5/6] Bootstrapping ArgoCD..."
 /usr/local/bin/kubectl create namespace argocd --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
 
 # Install ArgoCD Core Manifests
-echo "Applying ArgoCD official manifests..."
-/usr/local/bin/kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+echo "Applying ArgoCD official manifests with server-side apply..."
+/usr/local/bin/kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Install ArgoCD CLI binary
 echo "Downloading ArgoCD CLI..."
