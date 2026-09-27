@@ -1,41 +1,47 @@
 ###############################################################################
 # modules/database/variables.tf
+#
+# Generic PostgreSQL connection variables.
+# Works with any PostgreSQL backend: K3s-hosted, Cloud SQL, RDS, etc.
 ###############################################################################
 
-variable "project_id" {
-  description = "GCP project ID."
+variable "pg_host" {
+  description = "Hostname or IP address of the PostgreSQL instance. For K3s in-cluster deployments this is typically the Kubernetes Service name or ClusterIP."
   type        = string
 }
 
-variable "region" {
-  description = "Region where the Cloud SQL instance will be created."
-  type        = string
+variable "pg_port" {
+  description = "PostgreSQL port."
+  type        = number
+  default     = 5432
 }
 
-variable "instance_name" {
-  description = "Name of the Cloud SQL instance."
+variable "pg_database" {
+  description = "Name of the default database."
   type        = string
+  default     = "ops_master"
 }
 
-variable "database_version" {
-  description = "Database engine version (e.g. POSTGRES_15, MYSQL_8_0)."
+variable "pg_username" {
+  description = "PostgreSQL username."
   type        = string
-  default     = "POSTGRES_15"
+  default     = "ops_user"
 }
 
-variable "tier" {
-  description = "Machine type / tier for the Cloud SQL instance."
+variable "pg_password" {
+  description = "PostgreSQL password. Mark as sensitive; store in a secrets manager or Terraform Cloud variable set."
   type        = string
-  default     = "db-custom-2-7680"
+  sensitive   = true
 }
 
-variable "network" {
-  description = "Self-link of the VPC network for private IP peering."
+variable "pg_ssl_mode" {
+  description = "PostgreSQL SSL mode (disable | require | verify-ca | verify-full)."
   type        = string
+  default     = "require"
 }
 
-variable "deletion_protection" {
-  description = "Whether to enable deletion protection on the instance."
-  type        = bool
-  default     = true
+variable "connection_name" {
+  description = "Optional human-readable label for this connection (e.g. Cloud SQL connection string). Leave empty for non-GCP deployments."
+  type        = string
+  default     = ""
 }

@@ -3,17 +3,32 @@
 ###############################################################################
 
 output "connection_name" {
-  description = "Cloud SQL connection name (project:region:instance) for use with Cloud SQL Auth Proxy."
-  value       = google_sql_database_instance.main.connection_name
+  description = "Human-readable connection label (e.g. GCP Cloud SQL connection name, or a descriptive tag for non-GCP deployments)."
+  value       = var.connection_name != "" ? var.connection_name : "${var.pg_host}:${var.pg_port}/${var.pg_database}"
 }
 
-output "private_ip" {
-  description = "Private IP address of the Cloud SQL instance."
-  value       = google_sql_database_instance.main.private_ip_address
+output "pg_host" {
+  description = "PostgreSQL host."
+  value       = var.pg_host
+}
+
+output "pg_port" {
+  description = "PostgreSQL port."
+  value       = var.pg_port
+}
+
+output "pg_database" {
+  description = "PostgreSQL database name."
+  value       = var.pg_database
+}
+
+output "pg_username" {
+  description = "PostgreSQL username."
+  value       = var.pg_username
+}
+
+output "pg_connection_string" {
+  description = "Constructed PostgreSQL DSN (password excluded — inject separately)."
+  value       = "postgresql://${var.pg_username}@${var.pg_host}:${var.pg_port}/${var.pg_database}?sslmode=${var.pg_ssl_mode}"
   sensitive   = true
-}
-
-output "instance_name" {
-  description = "Name of the Cloud SQL instance."
-  value       = google_sql_database_instance.main.name
 }

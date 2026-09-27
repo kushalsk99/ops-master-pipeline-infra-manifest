@@ -1,24 +1,23 @@
 ###############################################################################
-# Root outputs.tf
+# Root outputs.tf — K3s-native infrastructure
 ###############################################################################
 
 output "cluster_endpoint" {
-  description = "GKE cluster API server endpoint."
-  value       = module.gke.cluster_endpoint
-  sensitive   = true
+  description = "K3s API server endpoint (https://<node-ip>:6443)."
+  value       = module.k3s.cluster_endpoint
+}
+
+output "kubeconfig_path" {
+  description = "Local path of the saved kubeconfig for this cluster."
+  value       = module.k3s.kubeconfig_path
 }
 
 output "artifact_registry_url" {
-  description = "Full Docker-compatible URL of the Artifact Registry repository."
+  description = "Full container image repository URL (<registry>/<repo>)."
   value       = module.artifact_registry.repository_url
 }
 
 output "database_connection_name" {
-  description = "Cloud SQL connection name (project:region:instance) for use with Cloud SQL Auth Proxy."
+  description = "PostgreSQL connection label (host:port/database)."
   value       = module.database.connection_name
-}
-
-output "ci_service_account_email" {
-  description = "Email of the CI/CD pipeline service account."
-  value       = module.iam.cicd_service_account_email
 }

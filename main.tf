@@ -1,98 +1,60 @@
 ###############################################################################
-# Root main.tf
-# Orchestrates all infrastructure modules for the ops-master pipeline.
+# Root main.tf — K3s-native infrastructure
+#
+# No cloud provider required. Modules use only null/local providers.
+# K3s node is assumed to be pre-provisioned (bare-metal, VM, VPS, etc.)
+# and reachable via SSH at var.node_ip.
 ###############################################################################
 
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
-provider "google-beta" {
-  project = var.project_id
-  region  = var.region
-}
-
 # ---------------------------------------------------------------------------
-# VPC
+# K3s Cluster
+# Bootstrap K3s on a pre-provisioned node via SSH.
 # ---------------------------------------------------------------------------
-module "vpc" {
-  source = "./modules/vpc"
+module "k3s" {
+  source = "./modules/k3s"
 
-  project_id   = var.project_id
-  region       = var.region
-  network_name = "app-vpc-${var.environment}"
-  subnets = [
-    {
-      name          = "app-subnet-${var.environment}"
-      ip_cidr_range = "10.0.0.0/16"
-      region        = var.region
-    }
-  ]
+  cluster_name          = "k3s-cluster-${var.environment}"
+  k3s_version           = var.k3s_version
+  node_ip               = var.node_ip
+  ssh_user              = var.ssh_user
+  ssh_private_key_path  = var.ssh_private_key_path
+  kubeconfig_output_dir = var.kubeconfig_output_dir
 }
 
 # ---------------------------------------------------------------------------
-# GKE
-# ---------------------------------------------------------------------------
-module "gke" {
-  source = "./modules/gke"
-
-  project_id   = var.project_id
-  region       = var.region
-  cluster_name = "gke-autopilot-cluster-${var.environment}"
-  network      = module.vpc.network_name
-  subnetwork   = module.vpc.subnet_names[0]
-  node_pool_config = {
-    name         = "default-pool"
-    machine_type = "e2-standard-4"
-    min_count    = 1
-    max_count    = 5
-    disk_size_gb = 100
-  }
-
-  depends_on = [module.vpc]
-}
-
-# ---------------------------------------------------------------------------
-# Artifact Registry
+# Container Registry (generic OCI)
+# Accepts any registry endpoint: GHCR, Docker Hub, self-hosted, etc.
 # ---------------------------------------------------------------------------
 module "artifact_registry" {
   source = "./modules/artifact_registry"
 
-  project_id    = var.project_id
-  region        = var.region
-  repository_id = "app-services-repo-${var.environment}"
-  description   = "Container image registry for the ops-master pipeline (${var.environment})."
-  format        = "DOCKER"
+  registry_url      = var.registry_url
+  repository        = "app-services-repo-${var.environment}"
+  registry_username = var.registry_username
+  registry_password = var.registry_password
+  description       = "Container image registry for the ops-master pipeline (${var.environment})."
+  is_insecure       = var.registry_is_insecure
 }
 
 # ---------------------------------------------------------------------------
-# Database (Cloud SQL)
+# Database — generic PostgreSQL endpoint
+#
+# Deploy PostgreSQL inside K3s using the Bitnami Helm chart:
+#   helm repo add bitnami https://charts.bitnami.com/bitnami
+#   helm install postgres bitnami/postgresql \
+#     --set auth.username=ops_user \
+#     --set auth.password=<password> \
+#     --set auth.database=ops_master
+#
+# Then set var.pg_host to the Service ClusterIP or LoadBalancer address.
 # ---------------------------------------------------------------------------
 module "database" {
   source = "./modules/database"
 
-  project_id          = var.project_id
-  region              = var.region
-  instance_name       = "app-postgres-db-${var.environment}"
-  database_version    = "POSTGRES_15"
-  tier                = "db-f1-micro"
-  network             = module.vpc.network_self_link
-  deletion_protection = false
-
-  depends_on = [module.vpc]
-}
-
-# ---------------------------------------------------------------------------
-# IAM
-# ---------------------------------------------------------------------------
-module "iam" {
-  source = "./modules/iam"
-
-  project_id             = var.project_id
-  gke_sa_name            = "ops-master-gke-sa-${var.environment}"
-  artifact_registry_repo = module.artifact_registry.repository_id
-  workload_identity_pool = module.gke.workload_identity_pool
-
-  depends_on = [module.gke, module.artifact_registry]
+  pg_host     = var.pg_host
+  pg_port     = var.pg_port
+  pg_database = var.pg_database
+  pg_username = var.pg_username
+  pg_password = var.pg_password
+  pg_ssl_mode = var.pg_ssl_mode
 }
