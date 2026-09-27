@@ -45,19 +45,20 @@ KEY_FILE="/tmp/gar-sa-key.json"
 gcloud iam service-accounts keys create "$${KEY_FILE}" \
   --iam-account="${gar_reader_sa_email}"
 
-echo "Creating kubernetes.io/dockerconfigjson secret gar-reader-secret in default namespace..."
-/usr/local/bin/kubectl create secret docker-registry gar-reader-secret \
-  --namespace=default \
-  --docker-server="${registry_host}" \
-  --docker-username=_json_key \
-  --docker-password="$(cat "$${KEY_FILE}")" \
-  --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
-
-# Patch default service account so workloads automatically inherit the pull secret
-echo "Patching default serviceaccount with imagePullSecrets..."
-/usr/local/bin/kubectl patch serviceaccount default \
-  --namespace=default \
-  -p '{"imagePullSecrets": [{"name": "gar-reader-secret"}]}'
+echo "Injecting gar-reader-secret into default, web-service-dev, and web-service-prod namespaces..."
+for NS in default web-service-dev web-service-prod; do
+  echo "Setting up GAR pull secret in namespace: $NS"
+  /usr/local/bin/kubectl create namespace "$NS" --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
+  /usr/local/bin/kubectl create secret docker-registry gar-reader-secret \
+    --namespace="$NS" \
+    --docker-server="${registry_host}" \
+    --docker-username=_json_key \
+    --docker-password="$(cat "$${KEY_FILE}")" \
+    --dry-run=client -o yaml | /usr/local/bin/kubectl apply -f -
+  /usr/local/bin/kubectl patch serviceaccount default \
+    --namespace="$NS" \
+    -p '{"imagePullSecrets": [{"name": "gar-reader-secret"}]}' || true
+done
 
 # Securely wipe the generated key file from the filesystem
 shred -u "$${KEY_FILE}" 2>/dev/null || rm -f "$${KEY_FILE}"
