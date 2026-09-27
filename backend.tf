@@ -1,45 +1,30 @@
 ###############################################################################
-# backend.tf
-#
-# Using the local backend so no GCP credentials or bucket are required.
-# To migrate to S3-compatible object storage (MinIO, Cloudflare R2, etc.)
-# just swap the backend block — no code changes needed elsewhere.
-#
-# Local backend stores state in ./terraform.tfstate on the machine that
-# runs `terraform apply`. Commit the state file to a private git repo or
-# move to a shared backend when team collaboration is needed.
+# backend.tf — Terraform & Provider Configurations
 ###############################################################################
 
 terraform {
   required_version = ">= 1.6.0"
 
   required_providers {
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.2"
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
     }
-    local = {
-      source  = "hashicorp/local"
-      version = ">= 2.4"
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
     }
   }
 
-  # Local state — safe default for a single-operator K3s setup.
-  # Uncomment the s3 block below (and remove this backend block) to use
-  # S3-compatible storage such as MinIO or Cloudflare R2.
+  # Local state default for single-operator deployments.
+  # Swap to GCS backend when running in team/CI environments.
   backend "local" {
     path = "terraform.tfstate"
   }
 
-  # ── Optional: S3-compatible backend ─────────────────────────────────────
-  # backend "s3" {
-  #   endpoint                    = "https://your-minio-or-r2-endpoint"
-  #   bucket                      = "ops-master-tfstate"
-  #   key                         = "infra-platform/state/terraform.tfstate"
-  #   region                      = "us-east-1"   # dummy value required by S3 provider
-  #   skip_credentials_validation = true
-  #   skip_metadata_api_check     = true
-  #   skip_region_validation      = true
-  #   force_path_style            = true
+  # ── Remote GCS Backend (Optional) ──────────────────────────────────────────
+  # backend "gcs" {
+  #   bucket = "YOUR_GCP_PROJECT_ID-tfstate"
+  #   prefix = "infra-platform/state"
   # }
 }

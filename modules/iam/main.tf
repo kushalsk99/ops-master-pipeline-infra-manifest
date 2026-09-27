@@ -1,46 +1,44 @@
 ###############################################################################
 # modules/iam/main.tf
+#
+# Dedicated Service Accounts and IAM bindings for K3s GCE VM and CI/CD.
 ###############################################################################
 
-# ── GKE Node Service Account ──────────────────────────────────────────────────
+# ── Dedicated K3s Node / GAR Reader Service Account ──────────────────────────
 
-resource "google_service_account" "gke_sa" {
+resource "google_service_account" "k3s_sa" {
   project      = var.project_id
-  account_id   = var.gke_sa_name
-  display_name = "GKE Node Service Account (ops-master)"
+  account_id   = var.sa_name
+  display_name = "K3s GCE Node & Artifact Registry Reader SA"
+  description  = "Dedicated service account for K3s GCE instance to pull from GAR and push logs/metrics."
 }
 
-resource "google_project_iam_member" "gke_sa_log_writer" {
-  project = var.project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.gke_sa.email}"
-}
-
-resource "google_project_iam_member" "gke_sa_metric_writer" {
-  project = var.project_id
-  role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.gke_sa.email}"
-}
-
-resource "google_project_iam_member" "gke_sa_monitoring_viewer" {
-  project = var.project_id
-  role    = "roles/monitoring.viewer"
-  member  = "serviceAccount:${google_service_account.gke_sa.email}"
-}
-
-resource "google_project_iam_member" "gke_sa_artifact_reader" {
+# Grant roles/artifactregistry.reader on project level
+resource "google_project_iam_member" "k3s_sa_artifact_reader" {
   project = var.project_id
   role    = "roles/artifactregistry.reader"
-  member  = "serviceAccount:${google_service_account.gke_sa.email}"
+  member  = "serviceAccount:${google_service_account.k3s_sa.email}"
 }
 
-# ── Workload Identity Binding ─────────────────────────────────────────────────
-# Allows the in-cluster KSA (kubernetes service account) to act as the GCP SA.
+# Grant Cloud Logging and Monitoring for node observability
+resource "google_project_iam_member" "k3s_sa_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.k3s_sa.email}"
+}
 
-resource "google_service_account_iam_member" "workload_identity_user" {
-  service_account_id = google_service_account.gke_sa.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${var.workload_identity_pool}"
+resource "google_project_iam_member" "k3s_sa_metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.k3s_sa.email}"
+}
+
+# Allow the VM startup script (running as this SA) to generate its own JSON key
+# for injection into the Kubernetes dockerconfigjson secret (least privilege).
+resource "google_service_account_iam_member" "k3s_sa_key_admin" {
+  service_account_id = google_service_account.k3s_sa.name
+  role               = "roles/iam.serviceAccountKeyAdmin"
+  member             = "serviceAccount:${google_service_account.k3s_sa.email}"
 }
 
 # ── CI/CD Pipeline Service Account ───────────────────────────────────────────
@@ -49,16 +47,11 @@ resource "google_service_account" "cicd_sa" {
   project      = var.project_id
   account_id   = "ops-master-cicd"
   display_name = "CI/CD Pipeline Service Account (ops-master)"
+  description  = "Service account used by GitHub Actions / CI pipeline to publish images to GAR."
 }
 
 resource "google_project_iam_member" "cicd_sa_artifact_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${google_service_account.cicd_sa.email}"
-}
-
-resource "google_project_iam_member" "cicd_sa_gke_developer" {
-  project = var.project_id
-  role    = "roles/container.developer"
   member  = "serviceAccount:${google_service_account.cicd_sa.email}"
 }

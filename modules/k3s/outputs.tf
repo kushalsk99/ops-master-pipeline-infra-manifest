@@ -2,22 +2,27 @@
 # modules/k3s/outputs.tf
 ###############################################################################
 
-output "cluster_name" {
-  description = "Logical name of the K3s cluster."
-  value       = var.cluster_name
+output "instance_name" {
+  description = "Name of the K3s GCE instance."
+  value       = google_compute_instance.k3s_server.name
+}
+
+output "instance_id" {
+  description = "Server-assigned unique identifier of the GCE instance."
+  value       = google_compute_instance.k3s_server.instance_id
+}
+
+output "instance_external_ip" {
+  description = "External public IPv4 address of the K3s server."
+  value       = google_compute_instance.k3s_server.network_interface[0].access_config[0].nat_ip
+}
+
+output "instance_internal_ip" {
+  description = "Internal private IPv4 address of the K3s server."
+  value       = google_compute_instance.k3s_server.network_interface[0].network_ip
 }
 
 output "cluster_endpoint" {
-  description = "K3s API server endpoint."
-  value       = "https://${var.node_ip}:6443"
-}
-
-output "node_ip" {
-  description = "IP address of the K3s server node."
-  value       = var.node_ip
-}
-
-output "kubeconfig_path" {
-  description = "Local path where the kubeconfig file was saved after bootstrap."
-  value       = "${var.kubeconfig_output_dir}/${var.cluster_name}-kubeconfig.yaml"
+  description = "K3s Kubernetes API endpoint."
+  value       = "https://${google_compute_instance.k3s_server.network_interface[0].access_config[0].nat_ip}:6443"
 }

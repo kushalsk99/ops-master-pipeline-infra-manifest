@@ -3,21 +3,16 @@
 ###############################################################################
 
 output "repository_id" {
-  description = "Fully qualified repository identifier (<registry_url>/<repository>)."
-  value       = "${var.registry_url}/${var.repository}"
+  description = "The repository ID."
+  value       = google_artifact_registry_repository.repo.repository_id
 }
 
 output "repository_url" {
-  description = "Full URL to the container image repository, ready to use as an image prefix in Kubernetes manifests and CI/CD pipelines."
-  value       = "${var.registry_url}/${var.repository}"
+  description = "Full Docker-compatible URL of the Artifact Registry repository."
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.repo.repository_id}"
 }
 
-output "registry_url" {
-  description = "Base URL of the container registry."
-  value       = var.registry_url
-}
-
-output "is_insecure" {
-  description = "Whether the registry uses a self-signed/insecure certificate."
-  value       = var.is_insecure
+output "registry_host" {
+  description = "Hostname of the Artifact Registry (used for dockerconfigjson server)."
+  value       = "${var.region}-docker.pkg.dev"
 }

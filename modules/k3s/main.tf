@@ -1,64 +1,55 @@
 ###############################################################################
 # modules/k3s/main.tf
 #
-# Bootstraps a K3s cluster on a PRE-PROVISIONED node via SSH.
-# No cloud provider resources are created here — the node (bare-metal,
-# VPS, VM, etc.) must already exist and be reachable at var.node_ip:22.
-#
-# What this module does:
-#   1. Connects to the node over SSH via remote-exec.
-#   2. Installs K3s using the official get.k3s.io script.
-#   3. Waits until the node is Ready.
-#   4. Fetches /etc/rancher/k3s/k3s.yaml via local-exec, patches the
-#      server URL to use the public IP, and saves it locally.
+# Provisions a Google Compute Engine (GCE) VM instance running K3s,
+# configured with a startup script that injects GAR pull credentials
+# and bootstraps ArgoCD and Linkerd-compatible GitOps root application.
 ###############################################################################
 
-terraform {
-  required_providers {
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.2"
+resource "google_compute_instance" "k3s_server" {
+  name         = var.cluster_name
+  machine_type = var.machine_type
+  zone         = var.zone
+
+  tags = ["k3s-node", "http-server", "https-server"]
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 50
+      type  = "pd-ssd"
     }
   }
-}
 
-resource "null_resource" "k3s_install" {
-  triggers = {
-    node_ip     = var.node_ip
-    k3s_version = var.k3s_version
+  network_interface {
+    subnetwork = var.subnetwork_id
+
+    # Allocate ephemeral public IPv4
+    access_config {
+      network_tier = "PREMIUM"
+    }
   }
 
-  connection {
-    type        = "ssh"
-    user        = var.ssh_user
-    private_key = file(var.ssh_private_key_path)
-    host        = var.node_ip
-    timeout     = "5m"
+  service_account {
+    email  = var.service_account_email
+    scopes = ["cloud-platform"]
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "set -euo pipefail",
-      "echo '[K3s] Installing K3s ${var.k3s_version} on ${var.node_ip}...'",
-      "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION='${var.k3s_version}' INSTALL_K3S_EXEC='server --disable traefik --tls-san ${var.node_ip}' sh -",
-      "echo '[K3s] Waiting for node to become Ready...'",
-      "until sudo k3s kubectl get node 2>/dev/null | grep -q ' Ready'; do sleep 5; done",
-      "echo '[K3s] Node is Ready.'",
-    ]
+  metadata = {
+    enable-oslogin = "TRUE"
   }
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -euo pipefail
-      mkdir -p ${var.kubeconfig_output_dir}
-      ssh -o StrictHostKeyChecking=no \
-          -i ${var.ssh_private_key_path} \
-          ${var.ssh_user}@${var.node_ip} \
-          "sudo cat /etc/rancher/k3s/k3s.yaml" \
-        | sed 's|https://127.0.0.1:6443|https://${var.node_ip}:6443|g' \
-        > ${var.kubeconfig_output_dir}/${var.cluster_name}-kubeconfig.yaml
-      chmod 600 ${var.kubeconfig_output_dir}/${var.cluster_name}-kubeconfig.yaml
-      echo "[K3s] kubeconfig saved → ${var.kubeconfig_output_dir}/${var.cluster_name}-kubeconfig.yaml"
-    EOT
+  metadata_startup_script = templatefile("${path.module}/templates/startup.sh.tpl", {
+    k3s_version            = var.k3s_version
+    gar_reader_sa_email    = var.service_account_email
+    registry_host          = var.registry_host
+    gitops_repo_url        = var.gitops_repo_url
+    gitops_path            = var.gitops_path
+    gitops_target_revision = var.gitops_target_revision
+  })
+
+  labels = {
+    managed-by = "terraform"
+    role       = "k3s-server"
   }
 }

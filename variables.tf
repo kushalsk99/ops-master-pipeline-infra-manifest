@@ -1,110 +1,70 @@
 ###############################################################################
-# Root variables.tf — K3s-native infrastructure
-# All GCP-specific variables removed.
+# Root variables.tf — GCE K3s & GitOps Infrastructure
 ###############################################################################
 
-# ── Environment ───────────────────────────────────────────────────────────────
+# ── GCP Project & Regional Coordinates ───────────────────────────────────────
+
+variable "project_id" {
+  description = "Google Cloud Project ID where all resources are provisioned."
+  type        = string
+}
+
+variable "region" {
+  description = "Default GCP Region."
+  type        = string
+  default     = "us-central1"
+}
+
+variable "zone" {
+  description = "Default GCP Zone for the GCE compute instance."
+  type        = string
+  default     = "us-central1-a"
+}
 
 variable "environment" {
-  description = "Deployment environment label (e.g. production, staging, dev). Used to namespace resource names."
+  description = "Deployment environment name (e.g. production, staging, dev)."
   type        = string
   default     = "production"
 }
 
-# ── K3s Node ──────────────────────────────────────────────────────────────────
+# ── Compute / K3s Configuration ──────────────────────────────────────────────
 
-variable "node_ip" {
-  description = "Public IP address (or hostname) of the pre-provisioned K3s server node. This node must be reachable via SSH before running terraform apply."
+variable "machine_type" {
+  description = "GCE Machine Type for the K3s cluster node."
   type        = string
+  default     = "e2-standard-4"
 }
 
 variable "k3s_version" {
-  description = "K3s release version to install (see https://github.com/k3s-io/k3s/releases)."
+  description = "K3s release version (https://github.com/k3s-io/k3s/releases)."
   type        = string
   default     = "v1.30.2+k3s1"
 }
 
-# ── SSH ───────────────────────────────────────────────────────────────────────
+# ── GitOps / ArgoCD Configuration ────────────────────────────────────────────
 
-variable "ssh_user" {
-  description = "SSH username for connecting to the K3s node."
+variable "gitops_repo_url" {
+  description = "GitOps repository URL containing application manifests and Linkerd configurations."
   type        = string
-  default     = "ubuntu"
+  default     = "https://github.com/kushalsk99/ops-master-pipeline-argo-gitops.git"
 }
 
-variable "ssh_private_key_path" {
-  description = "Absolute local path to the SSH private key used to access the K3s node."
+variable "gitops_path" {
+  description = "Root directory path within the GitOps repository for the root ArgoCD Application."
   type        = string
-  sensitive   = true
+  default     = "."
 }
 
-variable "kubeconfig_output_dir" {
-  description = "Local directory where the fetched kubeconfig will be saved after K3s bootstrap."
+variable "gitops_target_revision" {
+  description = "Git target revision (branch, tag, or commit hash) for the root ArgoCD Application."
   type        = string
-  default     = "~/.kube"
+  default     = "HEAD"
 }
 
-# ── Container Registry ────────────────────────────────────────────────────────
+# ── Networking & Security ────────────────────────────────────────────────────
 
-variable "registry_url" {
-  description = "Base URL of the OCI container registry (e.g. ghcr.io, docker.io, registry.example.com:5000)."
-  type        = string
-  default     = "ghcr.io"
-}
-
-variable "registry_username" {
-  description = "Username for authenticating to the container registry."
-  type        = string
-  default     = ""
-}
-
-variable "registry_password" {
-  description = "Password or token for authenticating to the container registry. Use TF_VAR_registry_password or a secrets manager."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "registry_is_insecure" {
-  description = "Set to true if the registry endpoint uses a self-signed certificate."
-  type        = bool
-  default     = false
-}
-
-# ── PostgreSQL (in-cluster / self-hosted) ─────────────────────────────────────
-
-variable "pg_host" {
-  description = "PostgreSQL hostname or Kubernetes Service name / ClusterIP. For in-cluster deployments this is typically the Helm release Service name (e.g. postgres.default.svc.cluster.local)."
-  type        = string
-  default     = "postgres.default.svc.cluster.local"
-}
-
-variable "pg_port" {
-  description = "PostgreSQL port."
-  type        = number
-  default     = 5432
-}
-
-variable "pg_database" {
-  description = "PostgreSQL database name."
-  type        = string
-  default     = "ops_master"
-}
-
-variable "pg_username" {
-  description = "PostgreSQL username."
-  type        = string
-  default     = "ops_user"
-}
-
-variable "pg_password" {
-  description = "PostgreSQL password. Use TF_VAR_pg_password env var or a secrets manager — do not commit plaintext."
-  type        = string
-  sensitive   = true
-}
-
-variable "pg_ssl_mode" {
-  description = "PostgreSQL SSL mode (disable | require | verify-ca | verify-full)."
-  type        = string
-  default     = "disable"
+variable "admin_source_ranges" {
+  description = "CIDR ranges allowed to access administrative ports (K3s API:6443, SSH:22)."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
 }

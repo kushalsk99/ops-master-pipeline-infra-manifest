@@ -17,6 +17,11 @@ output "subnet_names" {
   value       = [for s in google_compute_subnetwork.subnets : s.name]
 }
 
+output "subnet_ids" {
+  description = "IDs of all created subnets."
+  value       = { for k, s in google_compute_subnetwork.subnets : k => s.id }
+}
+
 output "subnet_self_links" {
   description = "Self-links of all created subnets."
   value       = [for s in google_compute_subnetwork.subnets : s.self_link]

@@ -3,21 +3,12 @@
 ###############################################################################
 
 variable "project_id" {
-  description = "GCP project ID."
+  description = "GCP Project ID."
   type        = string
 }
 
-variable "gke_sa_name" {
-  description = "Short account ID for the GKE node service account."
+variable "sa_name" {
+  description = "Account ID for the dedicated K3s / GAR reader service account."
   type        = string
-}
-
-variable "artifact_registry_repo" {
-  description = "Fully qualified Artifact Registry repository ID."
-  type        = string
-}
-
-variable "workload_identity_pool" {
-  description = "Workload Identity Pool identifier (e.g. project.svc.id.goog)."
-  type        = string
+  default     = "k3s-gar-reader-sa"
 }

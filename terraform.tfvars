@@ -1,38 +1,23 @@
 ###############################################################################
-# terraform.tfvars — K3s-native infrastructure
+# terraform.tfvars — GCE K3s & GitOps Platform
 #
-# Replace every <REPLACE> value with your actual settings.
-# For sensitive values (pg_password, registry_password, ssh_private_key_path)
-# prefer environment variables:
-#   export TF_VAR_pg_password="..."
-#   export TF_VAR_registry_password="..."
-#   export TF_VAR_ssh_private_key_path="..."
+# Customize with your GCP project parameters before running terraform apply.
 ###############################################################################
 
-# Deployment environment
+# GCP Coordinates
+project_id  = "ops-master-project"
+region      = "us-central1"
+zone        = "us-central1-a"
 environment = "production"
 
-# K3s node — must be reachable via SSH before terraform apply
-node_ip     = "1.2.3.4"             # <REPLACE> with your node's public IP
+# Compute Node Configuration
+machine_type = "e2-standard-4"
+k3s_version  = "v1.30.2+k3s1"
 
-# K3s version
-k3s_version = "v1.30.2+k3s1"
+# GitOps & ArgoCD Root Application
+gitops_repo_url        = "https://github.com/kushalsk99/ops-master-pipeline-argo-gitops.git"
+gitops_path            = "."
+gitops_target_revision = "HEAD"
 
-# SSH access
-ssh_user             = "ubuntu"     # <REPLACE> if your node uses a different user
-ssh_private_key_path = "~/.ssh/id_rsa"  # <REPLACE>
-kubeconfig_output_dir = "~/.kube"
-
-# Container registry (GHCR example — swap for docker.io or self-hosted)
-registry_url          = "ghcr.io"
-registry_username     = ""          # <REPLACE>
-# registry_password   = ""         # Set via TF_VAR_registry_password
-registry_is_insecure  = false
-
-# PostgreSQL — in-cluster via Bitnami Helm chart
-pg_host     = "postgres.default.svc.cluster.local"
-pg_port     = 5432
-pg_database = "ops_master"
-pg_username = "ops_user"
-# pg_password = ""                  # Set via TF_VAR_pg_password
-pg_ssl_mode = "disable"
+# Admin Access Firewall (Restrict to your office or VPN CIDR for enhanced security)
+admin_source_ranges = ["0.0.0.0/0"]

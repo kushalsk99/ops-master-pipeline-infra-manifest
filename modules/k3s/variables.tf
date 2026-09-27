@@ -2,37 +2,62 @@
 # modules/k3s/variables.tf
 ###############################################################################
 
-variable "cluster_name" {
-  description = "Logical name for this K3s cluster (used to name the saved kubeconfig file)."
+variable "project_id" {
+  description = "GCP Project ID."
   type        = string
-  default     = "k3s-cluster"
+}
+
+variable "zone" {
+  description = "GCP compute zone where the K3s instance will run."
+  type        = string
+}
+
+variable "cluster_name" {
+  description = "Logical name for the K3s cluster and instance."
+  type        = string
+  default     = "k3s-server"
+}
+
+variable "machine_type" {
+  description = "GCE machine type for the K3s server."
+  type        = string
+  default     = "e2-standard-4"
+}
+
+variable "subnetwork_id" {
+  description = "VPC Subnetwork ID where the VM will be deployed."
+  type        = string
+}
+
+variable "service_account_email" {
+  description = "Email of the dedicated GCP Service Account attached to the VM."
+  type        = string
 }
 
 variable "k3s_version" {
-  description = "K3s release version to install (see https://github.com/k3s-io/k3s/releases)."
+  description = "K3s version to install."
   type        = string
   default     = "v1.30.2+k3s1"
 }
 
-variable "node_ip" {
-  description = "Public IP address (or hostname) of the pre-provisioned K3s server node. Must be reachable from the Terraform host on port 22."
+variable "registry_host" {
+  description = "GAR Docker host (e.g. us-central1-docker.pkg.dev)."
   type        = string
 }
 
-variable "ssh_user" {
-  description = "SSH username for connecting to the K3s node."
+variable "gitops_repo_url" {
+  description = "GitOps repository URL containing application manifests."
   type        = string
-  default     = "ubuntu"
 }
 
-variable "ssh_private_key_path" {
-  description = "Absolute local path to the SSH private key for the K3s node."
+variable "gitops_path" {
+  description = "Path within the GitOps repository for the root application."
   type        = string
-  sensitive   = true
+  default     = "."
 }
 
-variable "kubeconfig_output_dir" {
-  description = "Local directory where the fetched kubeconfig will be saved."
+variable "gitops_target_revision" {
+  description = "Target revision/branch of the GitOps repository."
   type        = string
-  default     = "~/.kube"
+  default     = "HEAD"
 }

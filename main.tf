@@ -1,60 +1,82 @@
 ###############################################################################
-# Root main.tf — K3s-native infrastructure
+# Root main.tf — GCE K3s & GitOps Platform
 #
-# No cloud provider required. Modules use only null/local providers.
-# K3s node is assumed to be pre-provisioned (bare-metal, VM, VPS, etc.)
-# and reachable via SSH at var.node_ip.
+# Orchestrates VPC networking, Artifact Registry, IAM privileges,
+# and GCE K3s deployment bootstrapped with GAR secrets, ArgoCD & Linkerd support.
 ###############################################################################
 
-# ---------------------------------------------------------------------------
-# K3s Cluster
-# Bootstrap K3s on a pre-provisioned node via SSH.
-# ---------------------------------------------------------------------------
-module "k3s" {
-  source = "./modules/k3s"
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
 
-  cluster_name          = "k3s-cluster-${var.environment}"
-  k3s_version           = var.k3s_version
-  node_ip               = var.node_ip
-  ssh_user              = var.ssh_user
-  ssh_private_key_path  = var.ssh_private_key_path
-  kubeconfig_output_dir = var.kubeconfig_output_dir
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
 }
 
 # ---------------------------------------------------------------------------
-# Container Registry (generic OCI)
-# Accepts any registry endpoint: GHCR, Docker Hub, self-hosted, etc.
+# VPC Networking & Firewalls
+# ---------------------------------------------------------------------------
+module "vpc" {
+  source = "./modules/vpc"
+
+  project_id   = var.project_id
+  region       = var.region
+  network_name = "app-vpc-${var.environment}"
+  subnets = [
+    {
+      name          = "k3s-subnet-${var.environment}"
+      ip_cidr_range = "10.0.0.0/16"
+      region        = var.region
+    }
+  ]
+  admin_source_ranges = var.admin_source_ranges
+}
+
+# ---------------------------------------------------------------------------
+# Google Artifact Registry (GAR)
 # ---------------------------------------------------------------------------
 module "artifact_registry" {
   source = "./modules/artifact_registry"
 
-  registry_url      = var.registry_url
-  repository        = "app-services-repo-${var.environment}"
-  registry_username = var.registry_username
-  registry_password = var.registry_password
-  description       = "Container image registry for the ops-master pipeline (${var.environment})."
-  is_insecure       = var.registry_is_insecure
+  project_id    = var.project_id
+  region        = var.region
+  repository_id = "app-services-repo-${var.environment}"
+  description   = "Docker container image registry for ops-master GitOps pipeline (${var.environment})."
 }
 
 # ---------------------------------------------------------------------------
-# Database — generic PostgreSQL endpoint
-#
-# Deploy PostgreSQL inside K3s using the Bitnami Helm chart:
-#   helm repo add bitnami https://charts.bitnami.com/bitnami
-#   helm install postgres bitnami/postgresql \
-#     --set auth.username=ops_user \
-#     --set auth.password=<password> \
-#     --set auth.database=ops_master
-#
-# Then set var.pg_host to the Service ClusterIP or LoadBalancer address.
+# IAM & Dedicated Service Accounts
 # ---------------------------------------------------------------------------
-module "database" {
-  source = "./modules/database"
+module "iam" {
+  source = "./modules/iam"
 
-  pg_host     = var.pg_host
-  pg_port     = var.pg_port
-  pg_database = var.pg_database
-  pg_username = var.pg_username
-  pg_password = var.pg_password
-  pg_ssl_mode = var.pg_ssl_mode
+  project_id = var.project_id
+  sa_name    = "k3s-gar-reader-${var.environment}"
+}
+
+# ---------------------------------------------------------------------------
+# K3s GCE Instance & Startup Bootstrapping
+# ---------------------------------------------------------------------------
+module "k3s" {
+  source = "./modules/k3s"
+
+  project_id             = var.project_id
+  zone                   = var.zone
+  cluster_name           = "k3s-server-${var.environment}"
+  machine_type           = var.machine_type
+  subnetwork_id          = module.vpc.subnet_ids["k3s-subnet-${var.environment}"]
+  service_account_email  = module.iam.service_account_email
+  k3s_version            = var.k3s_version
+  registry_host          = module.artifact_registry.registry_host
+  gitops_repo_url        = var.gitops_repo_url
+  gitops_path            = var.gitops_path
+  gitops_target_revision = var.gitops_target_revision
+
+  depends_on = [
+    module.vpc,
+    module.iam,
+    module.artifact_registry
+  ]
 }
